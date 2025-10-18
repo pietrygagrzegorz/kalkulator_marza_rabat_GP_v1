@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Kalkulator marży i rabatu (GP)</title>
+<link rel="icon" href="data:image/svg+xml;utf8,
+<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'>
+  <defs>
+    <linearGradient id='grad' x1='0' x2='0' y1='0' y2='1'>
+      <stop offset='0%' stop-color='#58c26d'/>
+      <stop offset='100%' stop-color='#0f6b35'/>
+    </linearGradient>
+  </defs>
+  <rect x='16' y='16' width='480' height='480' rx='120' fill='url(#grad)'/>
+  <rect x='60' y='60' width='392' height='392' rx='100' fill='#ffffff'/>
+  <text x='50%' y='58%' text-anchor='middle' font-family='Inter, Arial, sans-serif' font-weight='1000' font-size='208' fill='#0f6b35'>GP</text>
+</svg>">
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  :root { --pad: 14px; --radius: 16px; --border: 1px solid #cbd5e1; --green: #16a34a; --green-dark:#0f6b35; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; font-family: -apple-system, system-ui, Segoe UI, Roboto, Arial, sans-serif;
+    background: radial-gradient(1200px 600px at 20% -10%, rgba(22,163,74,.08), transparent 50%),
+                linear-gradient(180deg, rgba(0,120,255,.04), transparent 40%);
+    color: #0f172a;
+  }
+  .container { max-width: 980px; margin: 24px auto; padding: 0 16px; }
+  header { display:flex; align-items:center; gap:12px; margin-bottom:10px; flex-wrap:wrap; }
+  .logo {
+    width:52px; height:52px; border-radius:16px; background:#16a34a;
+    display:grid; place-items:center; box-shadow: 0 8px 24px rgba(2,6,23,.15);
+    border: 2px solid #16a34a; overflow: hidden;
+  }
+  .logo svg { width:34px; height:34px; display:block; }
+  h1 { font-size: 22px; margin: 0; font-weight: 800; letter-spacing: .2px; display:flex; align-items:center; gap:10px; }
+  .badge {
+    display:inline-flex; align-items:center; justify-content:center;
+    padding:0 10px; height:32px; border-radius:10px; border:2px solid var(--green-dark);
+    background:#fff; color:var(--green-dark); font-weight:900; font-size:14px; letter-spacing:.5px;
+    box-shadow: 0 4px 12px rgba(2,6,23,.08);
+  }
+  .doubleLine { margin: 8px 2px 16px; }
+  .doubleLine div { height:1px; background: var(--green); opacity: .7; }
+  .doubleLine div + div { margin-top:4px; opacity: .4; }
+
+  .card {
+    backdrop-filter: blur(6px);
+    background: rgba(255,255,255,.9);
+    border: 1px solid rgba(15,23,42,.10);
+    border-radius: var(--radius);
+    padding: var(--pad);
+    box-shadow: 0 4px 16px rgba(2, 6, 23, .06);
+    margin-bottom: 16px;
+    overflow: hidden;
+  }
+  .grid-2 { display:grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 980px) { .grid-2 { grid-template-columns: 1fr; } }
+
+  label { display:block; font-size: 13px; color:#1f2937; margin-bottom:6px; }
+  label.bold { font-weight: 800; }
+  .muted { color:#475569; font-weight: 600; font-size: 12px; }
+
+  .input-wrap {
+    display:flex; align-items:center; gap:8px;
+    width:100%; border: var(--border); border-radius: 12px; background:#fff; padding: 6px 8px 6px 10px;
+  }
+  .input-wrap input[type="text"]{
+    flex:1; border:0; outline:none; font-size:16px; padding:8px 6px; background:transparent;
+    font-variant-numeric: tabular-nums; font-feature-settings: "tnum";
+  }
+  .suffix { display:inline-flex; align-items:center; gap:6px; font-weight:800; font-size:13px; color:#0f172a; background:#f8fafc; border:1px solid #e2e8f0; padding:6px 10px; border-radius:10px; }
+  .unitTag { font-size:11px; color:#64748b; font-weight:700; }
+
+  input.strong { font-weight: 800; }
+
+  .fake-input { display:flex; justify-content:space-between; align-items:center; width:100%; padding: 12px; border-radius: 12px; border: var(--border); }
+  .fake-input .val { font-weight:800; }
+  .status-pill { padding:4px 8px; border-radius:999px; font-size:12px; font-weight:800; }
+  .m-bad  { background:#fee2e2; color:#991b1b; }
+  .m-mid  { background:#ffedd5; color:#9a3412; }
+  .m-good { background:#dcfce7; color:#166534; }
+
+  .tone-bad  { border-color:#fecaca !important; background:#fff7f7; }
+  .tone-mid  { border-color:#fed7aa !important; background:#fff7ed; }
+  .tone-good { border-color:#bbf7d0 !important; background:#f7fff9; }
+
+  .segmented { display:inline-flex; border:1px solid #cbd5e1; border-radius:12px; overflow:hidden; }
+  .segmented button { padding:8px 12px; border:none; background:#f8fafc; cursor:pointer; }
+  .segmented button.active { background:var(--green); color:#fff; }
+
+  .actions { display:flex; gap:8px; flex-wrap: wrap; align-items:center; }
+  button.primary {
+    border:none; padding:12px 14px; border-radius:12px; background:var(--green); color:#fff;
+    font-weight:600; cursor:pointer;
+  }
+  button.ghost {
+    border:1px solid #cbd5e1; padding:10px 12px; border-radius:10px; background:#fff; cursor:pointer;
+  }
+  .pill { border:1px solid #cbd5e1; padding:6px 10px; border-radius:999px; background:#fff; cursor:pointer; font-weight:600; }
+
+  .result { display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px dashed #e2e8f0; }
+  .result:last-child { border-bottom:none; }
+  .right { text-align:right; }
+
+  .titleRow { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:8px; }
+  .titleRow h3 { margin:0; font-size:14px; letter-spacing:.3px; text-transform:uppercase; color:#334155; font-weight:700; }
+
+  .leftStack > * + * { margin-top: 12px; }
+  .rightStack > * + * { margin-top: 12px; }
+
+  .obnizkaPill { margin-left:auto; }
+
+  /* Currency bar */
+  .currencyBar { display:flex; align-items:center; gap:10px; margin-bottom:8px; flex-wrap:wrap; justify-content:space-between; }
+  .switchWrap { display:flex; align-items:center; gap:12px; }
+  .switch { position:relative; width:72px; height:32px; background:#e5e7eb; border-radius:999px; cursor:pointer; border:1px solid #cbd5e1; }
+  .knob { position:absolute; top:3px; left:3px; width:26px; height:26px; background:var(--green); border-radius:999px; box-shadow: 0 2px 6px rgba(2,6,23,.18); transition: left .18s ease; }
+  .switch.on .knob { left:43px; }
+  .switch .labels { position:absolute; width:100%; height:100%; display:flex; align-items:center; justify-content:space-between; padding:0 10px; font-weight:800; font-size:11px; color:#334155; }
+  .rateBox { display:none; align-items:center; gap:8px; }
+  .rateBox.show { display:flex; }
+  .rateBox .input-wrap{ max-width: 120px; padding: 4px 6px; }
+  .rateBox input { text-align:right; width: 70px; }
+  .currRight { font-weight:900; color:#0f172a; background:#f8fafc; border:1px solid #e2e8f0; padding:6px 12px; border-radius:10px; min-width:58px; text-align:center; }
+</style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="logo" aria-hidden="true">
+        <!-- Calculator icon with thicker orange bar -->
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+          <rect x="6" y="6" width="116" height="116" rx="28" fill="#16a34a"/>
+          <rect x="14" y="14" width="100" height="100" rx="24" fill="#ffffff"/>
+          <g>
+            <rect x="28" y="30" width="72" height="68" rx="14" fill="#16a34a"/>
+            <rect x="36" y="38" width="44" height="16" rx="6" fill="#3b82f6" opacity="0.95"/>
+            <rect x="84" y="36" width="14" height="64" rx="7" fill="#f97316"/>
+            <g fill="#ffffff" opacity="0.98">
+              <rect x="36" y="60" width="14" height="14" rx="4"/>
+              <rect x="54" y="60" width="14" height="14" rx="4"/>
+              <rect x="72" y="60" width="14" height="14" rx="4"/>
+              <rect x="36" y="78" width="14" height="14" rx="4"/>
+              <rect x="54" y="78" width="14" height="14" rx="4"/>
+              <rect x="72" y="78" width="14" height="14" rx="4"/>
+            </g>
+          </g>
+        </svg>
+      </div>
+      <h1>
+        Kalkulator marży i rabatu
+        <span class="badge">GP</span>
+      </h1>
+    </header>
+
+    <div class="currencyBar card" style="padding:10px;">
+      <div class="switchWrap">
+        <div><strong>Waluta:</strong></div>
+        <div id="currencySwitch" class="switch" role="switch" aria-checked="false" tabindex="0">
+          <div class="labels"><span>PLN</span><span>EUR</span></div>
+          <div class="knob"></div>
+        </div>
+        <div id="rateBox" class="rateBox">
+          <label class="bold">Kurs EUR</label>
+          <div class="input-wrap">
+            <input id="eurRate" type="text" inputmode="decimal" value="4,3" maxlength="7" />
+            <div class="suffix"><span class="unitTag">PLN/EUR</span></div>
+          </div>
+        </div>
+      </div>
+      <div id="currencyTextRight" class="currRight">PLN</div>
+    </div>
+
+    <div class="doubleLine" aria-hidden="true"><div></div><div></div></div>
+
+    <div class="card">
+      <div class="grid-2">
+        <div class="leftStack">
+          <div>
+            <label for="cena" class="bold">Cena sprzedaży (<span id="labelCurr1">PLN</span>)</label>
+            <div class="input-wrap">
+              <input id="cena" class="strong" type="text" inputmode="decimal" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="np. 1 500,00" />
+              <div class="suffix"><span id="suffixCurr1">zł</span></div>
+            </div>
+          </div>
+          <div>
+            <label for="koszt" class="bold">Koszt zakupu (<span id="labelCurr2">PLN</span>)</label>
+            <div class="input-wrap">
+              <input id="koszt" class="strong" type="text" inputmode="decimal" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="np. 1 000,00" />
+              <div class="suffix"><span id="suffixCurr2">zł</span></div>
+            </div>
+          </div>
+
+          <!-- Marża boxes -->
+          <div>
+            <label class="bold">Marża (<span id="labelCurr3">PLN</span>)</label>
+            <div id="boxKwota" class="fake-input"><span class="val" id="mKwotaInline">0,00 zł</span><span id="mStatus1" class="status-pill m-bad">PLN</span></div>
+          </div>
+          <div>
+            <label class="bold">Marża (%)</label>
+            <div class="input-wrap">
+              <input id="marzaInputProc" type="text" inputmode="decimal" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="np. 20" />
+              <div class="suffix"><span>%</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="rightStack">
+          <div>
+            <label>Tryb rabatu</label>
+            <div class="segmented" role="tablist" aria-label="Tryb rabatu">
+              <button id="tabProc" class="active" aria-selected="true">Rabat %</button>
+              <button id="tabKwota" aria-selected="false">Rabat (<span id="labelCurr4">PLN</span>)</button>
+            </div>
+          </div>
+          <div>
+            <div class="titleRow">
+              <label id="rabatLabel" class="bold">Rabat (%)</label>
+              <span class="muted">Presety</span>
+            </div>
+            <div class="input-wrap" style="margin-bottom:8px;">
+              <input id="rabat" type="text" inputmode="decimal" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="np. 10" />
+              <div class="suffix"><span id="rabatSuffix">%</span></div>
+            </div>
+            <div class="actions" style="flex-wrap:wrap;">
+              <button class="pill" data-preset="2">2%</button>
+              <button class="pill" data-preset="3">3%</button>
+              <button class="pill" data-preset="5">5%</button>
+              <button class="pill" data-preset="10">10%</button>
+              <button class="pill" data-preset="15">15%</button>
+              <button class="pill" data-preset="20">20%</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:12px" class="actions">
+        <button id="clear" class="ghost">Wyczyść pola</button>
+        <button id="format" class="ghost">Formatuj wartości</button>
+        <button id="calc" class="primary">Przelicz</button>
+        <span id="obnizkaPill" class="pill">Obniżka ceny: 0,00 zł</span>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card" id="wyniki1">
+        <div class="titleRow"><h3>Przed rabatem</h3></div>
+        <div class="result"><div>Cena</div><div class="right" id="cenaPrzed">0,00 zł</div></div>
+        <div class="result"><div>Marża (%)</div><div class="right" id="marzaProc">0,0 %</div></div>
+        <div class="result"><div>Marża (<span id="labelCurr5">PLN</span>)</div><div class="right" id="marzaKwota">0,00 zł</div></div>
+      </div>
+      <div class="card" id="wyniki2">
+        <div class="titleRow"><h3>Po rabacie</h3></div>
+        <div class="result"><div>Cena</div><div class="right" id="cenaPoRabacie">0,00 zł</div></div>
+        <div class="result"><div>Marża (%)</div><div class="right" id="marzaPoProc">0,0 %</div></div>
+        <div class="result"><div>Marża (<span id="labelCurr6">PLN</span>)</div><div class="right" id="marzaPoKwota">0,00 zł</div></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  // ===== Formatting helpers =====
+  function fmtPL(x, frac) {
+    if (!isFinite(x)) x = 0;
+    const neg = x < 0 ? '-' : '';
+    x = Math.abs(x);
+    const s = x.toFixed(frac);
+    const parts = s.split('.');
+    let int = parts[0];
+    const dec = parts[1] || '';
+    int = int.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+    return neg + int + (frac > 0 ? ',' + dec : '');
+  }
+  function parsePL(s){
+    if(!s) return 0;
+    return Number((s+'').replace(/\s/g,'').replace(/\./g,'').replace(/,/g,'.')) || 0;
+  }
+
+  function liveFormat(input, fracMax){
+    const val = input.value;
+    const pos = (typeof input.selectionStart === 'number') ? input.selectionStart : (val ? val.length : 0);
+    const isNumChar = ch => /[0-9,]/.test(ch);
+    let countBefore = 0;
+    for(let i=0;i<pos;i++){ if(isNumChar(val[i])) countBefore++; }
+
+    let raw = val.replace(/\s/g,'');
+    raw = raw.replace(/\./g,'').replace(/,/g,'.').replace(/[^0-9.]/g,'');
+    const firstDot = raw.indexOf('.');
+    if(firstDot !== -1){
+      raw = raw.slice(0, firstDot+1) + raw.slice(firstDot+1).replace(/\./g,'');
+    }
+    let num = Number(raw);
+    if(!isFinite(num)) num = 0;
+
+    const hasComma = (val.indexOf(',') !== -1);
+    const decimalsTyped = hasComma ? (val.length - val.indexOf(',') - 1) : 0;
+    const frac = Math.min(fracMax, Math.max(0, decimalsTyped));
+
+    const formatted = fmtPL(num, frac);
+
+    let idx = 0, seen = 0;
+    while(idx < formatted.length && seen < countBefore){
+      if(isNumChar(formatted[idx])) seen++;
+      idx++;
+    }
+    input.value = formatted;
+    requestAnimationFrame(()=>{
+      const p = Math.max(0, Math.min(formatted.length, idx));
+      if (typeof input.setSelectionRange === 'function') input.setSelectionRange(p, p);
+    });
+  }
+
+  // ===== Elements =====
+  const id = x => document.getElementById(x);
+  const elKoszt = id('koszt');
+  const elCena  = id('cena');
+  const elRabat = id('rabat');
+  const elRabatLabel = id('rabatLabel');
+  const tabProc = id('tabProc');
+  const tabKwota = id('tabKwota');
+  const marzaInputProc = id('marzaInputProc');
+  const mKwotaInline = id('mKwotaInline');
+  const boxKwota = id('boxKwota');
+  const mStatus1 = id('mStatus1');
+
+  const cenaPrzed   = id('cenaPrzed');
+  const marzaProc   = id('marzaProc');
+  const marzaKwota  = id('marzaKwota');
+  const cenaPo      = id('cenaPoRabacie');
+  const marzaPoProc = id('marzaPoProc');
+  const marzaPoKw   = id('marzaPoKwota');
+  const obnizkaPill = id('obnizkaPill');
+
+  const currencySwitch = id('currencySwitch');
+  const currencyTextRight = id('currencyTextRight');
+  const rateBox = id('rateBox');
+  const eurRate = id('eurRate');
+
+  // currency labels/suffix refs
+  const labelCurrEls = [id('labelCurr1'), id('labelCurr2'), id('labelCurr3'), id('labelCurr4'), id('labelCurr5'), id('labelCurr6')];
+  const suffixCurr1 = id('suffixCurr1');
+  const suffixCurr2 = id('suffixCurr2');
+  const rabatSuffix = id('rabatSuffix');
+
+  // ===== State =====
+  let tryb = 'proc';
+  let suppressReverse = false;
+  let currency = 'PLN'; // 'PLN' or 'EUR'
+
+  // ===== UI helpers =====
+  function setToneByPercent(percent){
+    boxKwota.classList.remove('tone-bad','tone-mid','tone-good');
+    mStatus1.classList.remove('m-bad','m-mid','m-good');
+    if(percent < 15){ boxKwota.classList.add('tone-bad'); mStatus1.classList.add('m-bad'); }
+    else if(percent < 20){ boxKwota.classList.add('tone-mid'); mStatus1.classList.add('m-mid'); }
+    else { boxKwota.classList.add('tone-good'); mStatus1.classList.add('m-good'); }
+  }
+  function setBadgeColor(el, percent){
+    el.classList.remove('m-bad','m-mid','m-good');
+    if(percent < 15){ el.classList.add('m-bad'); }
+    else if(percent < 20){ el.classList.add('m-mid'); }
+    else { el.classList.add('m-good'); }
+  }
+  function formatField(input, frac){
+    const v = parsePL(input.value);
+    input.value = fmtPL(v, frac);
+  }
+
+  // ===== Core calc =====
+  function oblicz(){
+    const k = parsePL(elKoszt.value);
+    const c = parsePL(elCena.value);
+    const r = parsePL(elRabat.value);
+
+    const mKwotaVal = Math.max(c - k, 0);
+    const mProcVal  = c > 0 ? ((c - k) / c) * 100 : 0;
+
+    const znizka = (tryb === 'proc') ? (c * r / 100) : Math.min(r, c);
+    const cAfter = Math.max(c - znizka, 0);
+    const mAfterProc = cAfter > 0 ? ((cAfter - k) / cAfter) * 100 : 0;
+    const mAfterKw   = Math.max(cAfter - k, 0);
+
+    const symbol = (currency === 'PLN') ? 'zł' : '€';
+
+    // Update inline displays + tone
+    mKwotaInline.textContent = fmtPL(mKwotaVal, 2) + ' ' + symbol;
+    if(!suppressReverse){
+      const val = Math.max(0, Math.round(mProcVal*10)/10);
+      marzaInputProc.value = String(val).replace('.',',');
+    }
+    setToneByPercent(mProcVal);
+
+    // Results panels + colors (pre and post)
+    cenaPrzed.textContent  = fmtPL(c, 2) + ' ' + symbol;
+    marzaProc.textContent  = fmtPL(mProcVal, 1) + ' %';
+    marzaKwota.textContent = fmtPL(mKwotaVal, 2) + ' ' + symbol;
+    setBadgeColor(marzaProc, mProcVal);
+    setBadgeColor(marzaKwota, mProcVal);
+
+    cenaPo.textContent      = fmtPL(cAfter, 2) + ' ' + symbol;
+    marzaPoProc.textContent = fmtPL(mAfterProc, 1) + ' %';
+    marzaPoKw.textContent   = fmtPL(mAfterKw, 2) + ' ' + symbol;
+    setBadgeColor(marzaPoProc, mAfterProc);
+    setBadgeColor(marzaPoKw, mAfterProc);
+
+    obnizkaPill.textContent = 'Obniżka ceny: ' + fmtPL(znizka, 2) + ' ' + symbol;
+  }
+
+  function applyMarginPercentEdit(){
+    const k = parsePL(elKoszt.value);
+    let mperc = marzaInputProc.value.trim().replace(',', '.');
+    let mp = Number(mperc);
+    if(!isFinite(mp)) mp = 0;
+    mp = Math.max(0, Math.min(95, mp));
+    suppressReverse = true;
+    const denom = 1 - (mp/100);
+    const c = denom > 0 ? (k / denom) : k;
+    elCena.value = fmtPL(c, 2);
+    suppressReverse = false;
+    oblicz();
+  }
+
+  function setTryb(mode){
+    tryb = mode;
+    const isProc = mode === 'proc';
+    tabProc.classList.toggle('active', isProc);
+    tabProc.setAttribute('aria-selected', String(isProc));
+    tabKwota.classList.toggle('active', !isProc);
+    tabKwota.setAttribute('aria-selected', String(!isProc));
+    elRabatLabel.textContent = isProc ? 'Rabat (%)' : 'Rabat ('+(currency==='PLN'?'PLN':'EUR')+')';
+    rabatSuffix.textContent = isProc ? '%' : (currency === 'PLN' ? 'zł' : '€');
+    oblicz();
+  }
+
+  // ===== Currency toggle =====
+  function setCurrency(mode){
+    const prev = currency;
+    currency = mode;
+    const isEUR = currency === 'EUR';
+    currencySwitch.classList.toggle('on', isEUR);
+    currencySwitch.setAttribute('aria-checked', String(isEUR));
+    rateBox.classList.toggle('show', isEUR);
+    currencyTextRight.textContent = isEUR ? 'EUR' : 'PLN';
+
+    // Update labels/suffixes
+    labelCurrEls.forEach(el => el.textContent = isEUR ? 'EUR' : 'PLN');
+    suffixCurr1.textContent = isEUR ? '€' : 'zł';
+    suffixCurr2.textContent = isEUR ? '€' : 'zł';
+    if(tryb !== 'proc'){ rabatSuffix.textContent = isEUR ? '€' : 'zł'; }
+
+    // Convert numerical fields if switching
+    const rate = parsePL(eurRate.value);
+    if(rate && rate > 0 && prev !== mode){
+      const factor = isEUR ? (1 / rate) : rate;
+      function convField(input){
+        const v = parsePL(input.value);
+        input.value = fmtPL(v * factor, 2);
+      }
+      convField(elCena);
+      convField(elKoszt);
+      if(tryb !== 'proc'){ // rebate amount
+        const v = parsePL(elRabat.value);
+        elRabat.value = fmtPL(v * factor, 2);
+      }
+    }
+    oblicz();
+  }
+
+  function attachEnterConfirm(input, fracMax){
+    input.addEventListener('keydown', (e) => {
+      if(e.key === 'Enter'){
+        e.preventDefault();
+        if(input === marzaInputProc){
+          applyMarginPercentEdit();
+        } else {
+          formatField(input, fracMax);
+          input.blur();
+          oblicz();
+        }
+      }
+    });
+  }
+
+  // ===== Bindings =====
+  tabProc.addEventListener('click', () => setTryb('proc'));
+  tabKwota.addEventListener('click', () => setTryb('kwota'));
+
+  document.querySelectorAll('button[data-delta]').forEach(b=>{
+    b.addEventListener('click', () => {
+      const delta = Number(b.getAttribute('data-delta')) || 0;
+      let v = parsePL(elRabat.value) + delta;
+      if(tryb === 'proc'){ v = Math.min(Math.max(0, v), 100); elRabat.value = String(Math.round(v)); }
+      else { elRabat.value = fmtPL(Math.max(v,0), 2); }
+      oblicz();
+    });
+  });
+  document.querySelectorAll('button[data-preset]').forEach(b=>{
+    b.addEventListener('click', () => {
+      const v = Number(b.getAttribute('data-preset')) || 0;
+      if(tryb === 'proc'){ elRabat.value = String(v); }
+      else { elRabat.value = fmtPL(v, 2); }
+      oblicz();
+    });
+  });
+
+  id('clear').addEventListener('click', () => { elKoszt.value=''; elCena.value=''; elRabat.value=''; marzaInputProc.value=''; oblicz(); });
+  id('format').addEventListener('click', () => {
+    formatField(elKoszt, 2); formatField(elCena, 2);
+    if(tryb === 'proc'){ elRabat.value = String(Math.round(parsePL(elRabat.value) || 0)); }
+    else { elRabat.value = fmtPL(parsePL(elRabat.value), 2); }
+    const m = marzaInputProc.value.replace(',','.');
+    const mv = Number(m); 
+    if(isFinite(mv)){ marzaInputProc.value = (Math.round(mv*10)/10).toString().replace('.',','); }
+  });
+  id('calc').addEventListener('click', oblicz);
+
+  // Live handlers
+  elCena.addEventListener('input', () => { liveFormat(elCena, 2); oblicz(); });
+  elKoszt.addEventListener('input', () => { liveFormat(elKoszt, 2); oblicz(); });
+  elRabat.addEventListener('input', () => {
+    if(tryb === 'proc'){
+      let digits = elRabat.value.replace(/\D/g,'');
+      let v = Math.min(Math.max(0, parseInt(digits||'0',10)), 100);
+      elRabat.value = String(v);
+    } else {
+      liveFormat(elRabat, 2);
+    }
+    oblicz();
+  });
+
+  marzaInputProc.addEventListener('input', () => {
+    let v = marzaInputProc.value.replace(/[^\d,]/g,'');
+    const parts = v.split(',');
+    if(parts.length > 2){ v = parts[0] + ',' + parts.slice(1).join('').replace(/,/g,''); }
+    marzaInputProc.value = v;
+    applyMarginPercentEdit();
+  });
+  marzaInputProc.addEventListener('blur', applyMarginPercentEdit);
+
+  // EUR rate input: format and keep decimals, when changed and currently in EUR, keep numeric values (no auto reconversion),
+  // conversion only happens on toggle as requested.
+  eurRate.addEventListener('input', () => { liveFormat(eurRate, 4); });
+
+  [elKoszt, elCena].forEach(inp => inp.addEventListener('blur', () => { formatField(inp, 2); oblicz(); }));
+  elRabat.addEventListener('blur', () => {
+    if(tryb === 'proc'){ /* keep integer */ }
+    else { formatField(elRabat, 2); }
+    oblicz();
+  });
+
+  attachEnterConfirm(elCena, 2);
+  attachEnterConfirm(elKoszt, 2);
+  attachEnterConfirm(marzaInputProc, 1);
+
+  // Currency switch interactions
+  function toggleCurrency(){
+    setCurrency(currency === 'PLN' ? 'EUR' : 'PLN');
+  }
+  currencySwitch.addEventListener('click', toggleCurrency);
+  currencySwitch.addEventListener('keydown', (e)=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); toggleCurrency(); }});
+
+  // Init
+  setCurrency('PLN');
+  setTryb('proc');
+  oblicz();
+})();
+</script>
+</body>
+</html>
